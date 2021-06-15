@@ -1,0 +1,12 @@
+/.vscode/
+*.o
+*.log
+ffproxy
+ffproxy.conf.5
+ffproxy.conf
+ffproxy.quick.7
+ffproxy.8
+Makefile
+sample.config
+configure.h
+config.status
