@@ -10,3 +10,12 @@ included.  Contacting IPv6 servers as well as binding to IPv6 is supported
 and allows transparent IPv6 over IPv4 browsing (and vice versa).
 
 Website:    http://faith.eu.org/programs.html
+
+Build & Run
+===========
+
+```sh
+git clone https://github.com/watamario15/5_PBL-A.git
+cd 5_PBL-A
+./build.sh
+```
