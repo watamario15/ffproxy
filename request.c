@@ -65,7 +65,7 @@ keep_alive:
 
 	if (getline_int(cl, buf, sizeof(buf)) < 1)
 		*buf = '\0';
-	printf("Req (Line 1): %s\n", buf); // ***** Request Header (Line 1) *****
+	// printf("Req (Line 1): %s\n", buf); // ***** Request Header (Line 1) *****
 
 	if ((http_url(&r, buf)) == 0) {
 		int             i;
@@ -148,6 +148,8 @@ keep_alive:
 				break;
 			case E_RES:
 				info("resolve failure for host (%s) from (%s) [%s]", r.host, clinfo->name, clinfo->ip);
+				// Wayback Machine に request 送信/受信
+				// これでうまくいったら i = 0;
 				break;
 			case E_CON:
 				info("connection failure for host (%s) from (%s) [%s]", r.host, clinfo->name, clinfo->ip);
@@ -600,15 +602,21 @@ c_break:
 		(void) close(s);
 		return 0;
 	} else if (r->type != HEAD) {
-		// int new_i = 0;
+		int new_i = 0;
 		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-			// fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
+			fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
+			// title 取得 <title> から </title> (大文字小文字区別なし) の範囲を取得
+			// くりぬいて新しい変数に入れる
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
 				return -1;
 			}
 		}
 		(void) close(s);
+		
+		// URL 取得 (r->url), さっき取った title, (キャッシュのファイル名) をファイルに書き出す。
+		// fprintf(fp, "%s, %s, %s\n", r->url, "title", "filename");
+
 		return 0;
 	}
 
