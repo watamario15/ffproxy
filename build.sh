@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-./configure
+if [ $# -eq 1 ]; then
+    if [ $1 = "first" ]; then
+        ./configure
+    else
+        echo "No such option: $1"
+    fi
+fi
 make
 sudo make install
 
