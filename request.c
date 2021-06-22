@@ -607,6 +607,39 @@ c_break:
 			fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
 			// title 取得 <title> から </title> (大文字小文字区別なし) の範囲を取得
 			// くりぬいて新しい変数に入れる
+
+  			char tag[64] = "<title>";
+  			char *p_buf  = buf;
+  			char *p_tag  = tag;
+  			char title[64];			// タイトルを格納する文字配列
+
+  			int i = 0, j = 0, len = 0, match = 0;
+  			while(buf[i]!='\0') {
+    			len   = 0;
+    			match = 0;
+    			j     = 0;
+    			if (*(p_buf) == *(p_tag)) {
+      				while(*(p_buf) == *(p_tag + j)) {
+          				match++;
+          				p_buf++;
+         				i++;
+          				j++;
+      				}
+        			if (match == 7) {
+         				while (*(p_buf) != '<') {
+            				p_buf++;
+            				len++;
+          				}
+          				strncpy(title, (buf + i), len);
+          				fprintf(stderr, "\ntitle: %s\n",title);	// タイトル出力
+          				break;
+        			}
+    			}
+    			p_buf++;
+    			i++;
+  			}
+
+
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
 				return -1;
