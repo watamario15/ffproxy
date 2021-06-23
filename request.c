@@ -558,7 +558,7 @@ do_request(int cl, struct req * r)
 
 		DEBUG(("do_request() => remote header ready: (%s)", buf));
 
-		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
+		//fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
 		if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 			(void) close(s);
 			return -1;
@@ -602,43 +602,47 @@ c_break:
 		(void) close(s);
 		return 0;
 	} else if (r->type != HEAD) {
-		int new_i = 0;
+		char title[64];			// タイトルを格納する文字配列
+		int  title_flag = 0;	// タイトル未取得:0, 既取得:1
+		int  new_i      = 0;
 		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
 			fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
 			// title 取得 <title> から </title> (大文字小文字区別なし) の範囲を取得
 			// くりぬいて新しい変数に入れる
 
-  			char tag[64] = "<title>";
-  			char *p_buf  = buf;
-  			char *p_tag  = tag;
-  			char title[64];			// タイトルを格納する文字配列
-
-  			int i = 0, j = 0, len = 0, match = 0;
-  			while(buf[i]!='\0') {
-    			len   = 0;
-    			match = 0;
-    			j     = 0;
-    			if (*(p_buf) == *(p_tag)) {
-      				while(*(p_buf) == *(p_tag + j)) {
-          				match++;
-          				p_buf++;
-         				i++;
-          				j++;
-      				}
-        			if (match == 7) {
-         				while (*(p_buf) != '<') {
-            				p_buf++;
-            				len++;
-          				}
-          				strncpy(title, (buf + i), len);
-          				fprintf(stderr, "\ntitle: %s\n",title);	// タイトル出力
-          				break;
-        			}
-    			}
-    			p_buf++;
-    			i++;
+			// タイトルが見つかっていれば以降の処理はスキップ
+			if (title_flag == 0){
+  				char tag[64] = "<title>";
+  				char *p_buf  = buf;
+  				char *p_tag  = tag;
+				fprintf(stderr, "search\n");
+				int k = 0, l = 0, title_len = 0, match = 0;
+  				while(k < len) {
+    				title_len   = 0;
+    				match       = 0;
+    				l    		= 0;
+    				if (*(p_buf) == *(p_tag)) {
+      					while(*(p_buf) == *(p_tag + l)) {
+          					match++;
+          					p_buf++;
+         					k++;
+          					l++;
+      					}
+        				if (match == 7) {
+         					while (*(p_buf) != '<') {
+            					p_buf++;
+            					title_len++;
+          					}
+          					strncpy(title, (buf + k), title_len);
+          					fprintf(stderr, "\ntitle: %s\n", title);	// タイトル出力
+							title_flag = 1;
+          					break;
+        				}
+    				}
+    				p_buf++;
+    				k++;
+				}
   			}
-
 
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
