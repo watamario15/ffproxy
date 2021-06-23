@@ -15,7 +15,10 @@ Build & Run
 ===========
 
 ```sh
+# cd /where/you/want/to/put/everything/in
 git clone https://github.com/watamario15/5_PBL-A.git
 cd 5_PBL-A
-./build.sh
+./build.sh first
 ```
+
+After the first build, you can speed up the build process by simply running `./build.sh` w/o no options. This excludes the execution of `./configure`.
