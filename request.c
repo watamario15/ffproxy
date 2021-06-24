@@ -603,46 +603,59 @@ c_break:
 		return 0;
 	} else if (r->type != HEAD) {
 		char title[64];			// タイトルを格納する文字配列
-		int  title_flag = 0;	// タイトル未取得:0, 既取得:1
-		int  new_i      = 0;
+		int	 title_flag	 = 0; 	// タイトル未取得:0, 既取得:1
+		int	 title_index = 0;
+		int  tag_match	 = 0;	
+
+		int	 new_i = 0;
 		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
 			fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
-			// title 取得 <title> から </title> (大文字小文字区別なし) の範囲を取得
-			// くりぬいて新しい変数に入れる
-
+			
+			// <title> から </title> (大文字小文字区別なし) の範囲を取得
 			// タイトルが見つかっていれば以降の処理はスキップ
-			if (title_flag == 0){
-  				char tag[64] = "<title>";
-  				char *p_buf  = buf;
-  				char *p_tag  = tag;
-				fprintf(stderr, "search\n");
-				int k = 0, l = 0, title_len = 0, match = 0;
-  				while(k < len) {
-    				title_len   = 0;
-    				match       = 0;
-    				l    		= 0;
-    				if (*(p_buf) == *(p_tag)) {
-      					while(*(p_buf) == *(p_tag + l)) {
-          					match++;
-          					p_buf++;
-         					k++;
-          					l++;
-      					}
-        				if (match == 7) {
-         					while (*(p_buf) != '<') {
-            					p_buf++;
-            					title_len++;
-          					}
-          					strncpy(title, (buf + k), title_len);
-          					fprintf(stderr, "\ntitle: %s\n", title);	// タイトル出力
-							title_flag = 1;
-          					break;
-        				}
-    				}
-    				p_buf++;
-    				k++;
-				}
-  			}
+    		if (title_flag == 0){
+				char* tag1 = "<title>";
+				char* tag2 = "<TITLE>";
+				int k, l;
+      			k = 0;
+      			while (k < len) {
+        			l = tag_match;
+        			if(tag_match != 7) {
+         				while (1) {
+            				if (*(buf + k) == *(tag1 + l) || *(buf + k) == *(tag2 + l)) {
+              					k++;
+              					l++;
+              					if (k == len || l == 7) {
+                					tag_match = l;
+                					break;
+              					}
+            				}
+            				else {
+              					tag_match = 0;
+              					k++;
+              					break;
+            				}
+          				}
+        			}
+        			else {
+          				while (k < len && *(buf + k) != '<') {
+            				title[title_index] = *(buf + k);
+            				title_index++;
+            				k++;
+          				}
+          				if (*(buf + k) == '<') {
+            				title_flag = 1;
+            				break;
+          				}
+          				else {
+            				title_flag = 0;
+            				k++;
+            				break;
+          				}
+        			}
+      			}
+    		}
+			title[title_index] = '\0';
 
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
@@ -650,7 +663,8 @@ c_break:
 			}
 		}
 		(void) close(s);
-		
+		fprintf(stderr, "\ntitle: %s\n", title); // タイトル出力
+
 		// URL 取得 (r->url), さっき取った title, (キャッシュのファイル名) をファイルに書き出す。
 		// fprintf(fp, "%s, %s, %s\n", r->url, "title", "filename");
 
