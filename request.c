@@ -614,7 +614,7 @@ c_break:
 		}
 		(void) close(s);
 		FILE *fp;
-               fp=fopen("history","a");
+               fp=fopen("~/.ffproxy/history","a");
                fprintf(fp,"%s, %s,\n",r->url,"title");
                fclose(fp);
 
