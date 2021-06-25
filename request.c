@@ -558,7 +558,7 @@ do_request(int cl, struct req * r)
 
 		DEBUG(("do_request() => remote header ready: (%s)", buf));
 
-		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
+		fprintf(stderr, "\n***** RESPONSE HEADER *****\n%s\n", buf); // Response Header
 		if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 			(void) close(s);
 			return -1;
@@ -604,7 +604,7 @@ c_break:
 	} else if (r->type != HEAD) {
 		int new_i = 0;
 		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-			fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
+			// fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
 			// title 取得 <title> から </title> (大文字小文字区別なし) の範囲を取得
 			// くりぬいて新しい変数に入れる
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
