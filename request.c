@@ -18,7 +18,7 @@
  * this program; if not, write to the Free Software Foundation, Inc., 675
  * Mass Ave, Cambridge, MA 02139, USA.
  */
-
+#include <iconv.h>
 #include "configure.h"
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -301,6 +301,8 @@ do_request(int cl, struct req * r)
 	ip = 0L;
 	s = 0;
 
+	// キャッシュ読み込み & return 0
+
 	if (config.use_ipv6 && (config.aux_proxy_ipv6 || *config.proxyhost == '\0')) {
 		struct addrinfo hints, *res, *res0;
 		char port[6];
@@ -558,11 +560,8 @@ do_request(int cl, struct req * r)
 
 		DEBUG(("do_request() => remote header ready: (%s)", buf));
 
-<<<<<<< HEAD
-		fprintf(stderr, "\n***** RESPONSE HEADER *****\n%s\n", buf); // Response Header
-=======
-		//fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
->>>>>>> origin/Okamoto-Ryuu
+		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
+		// Header 保存 (確実に文字列、バイナリとして書き込んでもいい)
 		if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 			(void) close(s);
 			return -1;
@@ -606,7 +605,7 @@ c_break:
 		(void) close(s);
 		return 0;
 	} else if (r->type != HEAD) {
-		char title[64];			// タイトルを格納する文字配列
+		char title[256];			// タイトルを格納する文字配列
 		int	 title_flag	 = 0; 	// タイトル未取得:0, 既取得:1
 		int	 title_index = 0;
 		int  tag_match	 = 0;	
@@ -660,6 +659,8 @@ c_break:
       			}
     		}
 			title[title_index] = '\0';
+		
+			// Body 保存　(バイナリとして処理する)
 
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
@@ -667,10 +668,20 @@ c_break:
 			}
 		}
 		(void) close(s);
-		fprintf(stderr, "\ntitle: %s\n", title); // タイトル出力
 
-		// URL 取得 (r->url), さっき取った title, (キャッシュのファイル名) をファイルに書き出す。
-		// fprintf(fp, "%s, %s, %s\n", r->url, "title", "filename");
+		FILE *fp;
+		if (fp=fopen("/usr/local/etc/ffproxyhist.csv", "a")){
+			// iconv_t icd;
+			// char p_dst[512];
+			// size_t n_src = strlen(title), n_dst = 512;
+			// icd = iconv_open("UTF-8", "EUC-JP");
+    		// while(0 < n_src){
+			// 	iconv(icd, &title, &n_src, &p_dst, &n_dst);
+			// }
+			fprintf(fp, "%s, %s,\n", r->url, title);
+			// iconv_close(icd);
+			fclose(fp);
+		}
 
 		return 0;
 	}
