@@ -613,7 +613,11 @@ c_break:
 			}
 		}
 		(void) close(s);
-		
+		FILE *fp;
+               fp=fopen("history","w");
+               fprintf(fp,"%s\n%s",r->url,"title");
+               fclose(fp);
+
 		// URL 取得 (r->url), さっき取った title, (キャッシュのファイル名) をファイルに書き出す。
 		// fprintf(fp, "%s, %s, %s\n", r->url, "title", "filename");
 
