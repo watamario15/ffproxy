@@ -47,10 +47,25 @@
 #include "request.h"
 #include "configure.h"
 
+#ifndef ORIGINAL
+ #include <openssl/sha.h> // SHA Library
+#endif
+
 static int      read_header(int, struct req *);
 static char     sgetc(int);
 static size_t   getline_int(int, char[], int);
 static int      do_request(int, struct req *);
+#ifndef ORIGINAL
+int judge(char*, char*);
+#endif
+
+int compute_sha256(unsigned char *src, unsigned int src_len, unsigned char *buffer) {
+	SHA256_CTX c;
+	SHA256_Init(&c);
+	SHA256_Update(&c, src, src_len);
+	SHA256_Final(buffer, &c);
+	return 0;
+}
 
 void
 handle_request(int cl, struct clinfo * clinfo)
@@ -296,6 +311,12 @@ do_request(int cl, struct req * r)
 	void           *foo;
 	size_t          len, i;
 	char            buf[4096];
+
+#ifndef ORIGINAL
+	char cachepath[64] = "/usr/local/etc/", hashurl[33];
+	int isCachable = 1;
+	FILE* fp;
+#endif
 
 	len = 0;
 	ip = 0L;
@@ -560,8 +581,30 @@ do_request(int cl, struct req * r)
 
 		DEBUG(("do_request() => remote header ready: (%s)", buf));
 
+#ifndef ORIGINAL
+        isCachable = judge(buf, "private");
+        isCachable = isCachable && judge(buf, "no-cache");
+        isCachable = isCachable && judge(buf,"no-store");
+        isCachable = isCachable && judge(buf,"must-revalidate");
+        isCachable = isCachable && judge(buf,"proxy-revalidate");
+
 		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
-		// Header 保存 (確実に文字列、バイナリとして書き込んでもいい)
+		// スコープのあれで isCachable を移動しました。普通にこれに保存してください。 
+		
+		// ここにヘッダ解析お願いします
+		
+		if(isCachable){ // Header 保存 (確実に文字列、バイナリとして書き込んでもいい)
+			compute_sha256(r->url, strlen(r->url), hashurl);
+			hashurl[32] = '\0';
+			strcat(cachepath, /*hashurl*/"test");
+			
+			if(fp = fopen(cachepath, "wb")){
+				fwrite(buf, 1, len, fp); // ヘッダを保存
+				fclose(fp);
+			}
+		}
+#endif
+		
 		if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 			(void) close(s);
 			return -1;
@@ -575,6 +618,22 @@ do_request(int cl, struct req * r)
 
 		to.tv_sec = config.to_con;
 		to.tv_usec = 0;
+
+#ifndef ORIGINAL
+		FILE *fp;
+		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "a")){
+			// iconv_t icd;
+			// char p_dst[512];
+			// size_t n_src = strlen(title), n_dst = 512;
+			// icd = iconv_open("UTF-8", "EUC-JP");
+			// while(0 < n_src){
+			// 	iconv(icd, &title, &n_src, &p_dst, &n_dst);
+			// }
+			fprintf(fp, "%s,\n", r->url);
+			// iconv_close(icd);
+			fclose(fp);
+		}
+#endif
 
 		if (write(cl, con_est, strlen(con_est)) < 1)
 			goto c_break;
@@ -605,14 +664,17 @@ c_break:
 		(void) close(s);
 		return 0;
 	} else if (r->type != HEAD) {
-		char title[256];			// タイトルを格納する文字配列
+		char title[256];		// タイトルを格納する文字配列
 		int	 title_flag	 = 0; 	// タイトル未取得:0, 既取得:1
 		int	 title_index = 0;
-		int  tag_match	 = 0;	
-
+		int  tag_match	 = 0;
 		int	 new_i = 0;
+		
+		if(isCachable) fp = fopen(cachepath, "ab");
 		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
 			// fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
+#ifndef ORIGINAL
+			if(fp) fwrite(buf, 1, len, fp); // ボディーを保存
 			
 			// <title> から </title> (大文字小文字区別なし) の範囲を取得
 			// タイトルが見つかっていれば以降の処理はスキップ
@@ -659,18 +721,18 @@ c_break:
       			}
     		}
 			title[title_index] = '\0';
-		
-			// Body 保存　(バイナリとして処理する)
-
+#endif
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
 				return -1;
 			}
 		}
+		if(fp) fclose(fp);
+		
 		(void) close(s);
-
+#ifndef ORIGINAL
 		FILE *fp;
-		if (fp=fopen("/usr/local/etc/ffproxyhist.csv", "a")){
+		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "a")){
 			// iconv_t icd;
 			// char p_dst[512];
 			// size_t n_src = strlen(title), n_dst = 512;
@@ -682,9 +744,30 @@ c_break:
 			// iconv_close(icd);
 			fclose(fp);
 		}
-
+#endif
 		return 0;
 	}
-
 	return 0;
 }
+
+#ifndef ORIGINAL
+int judge(char *head, char *search) {
+	int isCashable=1;//結果を格納
+	int shortl=strlen(search);
+	int longl=strlen(head);
+	int i,j;
+	for(i=0;i<=longl-shortl;i++){
+		for(j=0;j<shortl;j++){
+			if(head[j+i]!=search[j]){
+				break;
+			}
+			if(j==shortl){
+				isCashable=0;
+				break;
+			}
+		}
+	}
+	
+	return isCashable;
+}
+#endif
