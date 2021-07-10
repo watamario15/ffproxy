@@ -44,6 +44,10 @@
 #include "dns.h"
 #include "signals.h"
 
+#ifndef ORIGINAL
+#include <dirent.h>
+#endif
+
 #if !defined(HAVE_DAEMON) || defined(NEED_DAEMON) || defined(__sun__)
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -120,13 +124,34 @@ main(int argc, char *argv[])
 	config.to_con = 5;
 	config.first = 1;
 
+#ifdef ORIGINAL
 	while ((c = getopt(argc, argv, "vdbBc:C:p:x:X:l:u:g:r:D:F:f:s4a:A:h")) != -1) {
+#else
+	while ((c = getopt(argc, argv, "vdbBRc:C:p:x:X:l:u:g:r:D:F:f:s4a:A:h")) != -1) {
+#endif
 		switch (c) {
 		case 'v':
 			(void) printf("ffproxy version %s, %s\n",
 				      version, rcsid);
 			exit(0);
 			break;
+#ifndef ORIGINAL
+		case 'R': // Clear cache files
+			{
+				DIR *dir;
+				struct dirent *ds;
+				char fname[256];
+				
+				if( !(dir=opendir("/usr/local/etc/ffproxy_cache")) ) break;
+				for(ds=readdir(dir); ds; ds=readdir(dir)){
+					if(ds->d_type != DT_REG) continue;
+					sprintf(fname, "/usr/local/etc/ffproxy_cache/%s", ds->d_name);
+					remove(fname);
+				}
+			}
+			break;
+			
+#endif
 		case 'd':
 			config.daemon = 1;
 			break;
@@ -279,6 +304,9 @@ main(int argc, char *argv[])
 	(void) snprintf(loop_header, sizeof(loop_header), "X-Loop-%d-%d: true", getpid(), (int) time(NULL));
 
 	init_sighandlers();
+#ifndef ORIGINAL
+	mkdir("/usr/local/etc/ffproxy_cache", 493);
+#endif
 	open_socket();
 
 	/* NOTREACHED */

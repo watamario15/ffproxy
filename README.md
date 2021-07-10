@@ -1,3 +1,6 @@
+# The ffproxy improving project in the PBL-A course, 2021
+[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/watamario15/5_PBL-A)
+
 Description
 ===========
 
@@ -21,4 +24,4 @@ cd 5_PBL-A
 ./build.sh first
 ```
 
-After the first build, you can speed up the build process by simply running `./build.sh` w/o no options. This excludes the execution of `./configure`.
+After the first build, you can speed up the build process by simply running `./build.sh` with no options. This excludes the execution of `./configure`.

@@ -18,7 +18,6 @@
  * this program; if not, write to the Free Software Foundation, Inc., 675
  * Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <iconv.h>
 #include "configure.h"
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -48,24 +47,13 @@
 #include "configure.h"
 
 #ifndef ORIGINAL
- #include <openssl/sha.h> // SHA Library
+#include <openssl/sha.h> // SHA Library
 #endif
 
 static int      read_header(int, struct req *);
 static char     sgetc(int);
 static size_t   getline_int(int, char[], int);
 static int      do_request(int, struct req *);
-#ifndef ORIGINAL
-int judge(char*, char*);
-#endif
-
-int compute_sha256(unsigned char *src, unsigned int src_len, unsigned char *buffer) {
-	SHA256_CTX c;
-	SHA256_Init(&c);
-	SHA256_Update(&c, src, src_len);
-	SHA256_Final(buffer, &c);
-	return 0;
-}
 
 void
 handle_request(int cl, struct clinfo * clinfo)
@@ -269,6 +257,86 @@ getline_int(int s, char buf[], int len)
 	return i;
 }
 
+#ifndef ORIGINAL
+// <title> から </title> (大文字小文字区別なし) の範囲を取得。既にタイトルが見つかっていれば以降の処理はスキップ
+int ExtractTitle(char body[], int len, char title[]) {
+	int title_flag = 0 /* タイトル未取得:0, 既取得:1 */, title_index = 0, tag_match = 0, k = 0, l;
+	char *tag1 = "<title>", *tag2 = "<TITLE>";
+	
+	while (k < len) {
+		l = tag_match;
+		if(tag_match != 7) {
+			while (1) {
+				if (*(body + k) == *(tag1 + l) || *(body + k) == *(tag2 + l)) {
+					k++; l++;
+					if (k == len || l == 7) {
+						tag_match = l;
+						break;
+					}
+				}
+				else {
+					tag_match = 0;
+					k++;
+					break;
+				}
+			}
+		}
+		else {
+			while (k < len && *(body + k) != '<') {
+				title[title_index] = *(body + k);
+				title_index++;
+				k++;
+			}
+			if (*(body + k) == '<') {
+				title_flag = 1;
+				break;
+			} else {
+				title_flag = 0;
+				k++;
+				break;
+			}
+		}
+	}
+	title[title_index] = '\0';
+	return title_flag;
+}
+
+int compute_sha256(unsigned char *src, unsigned int src_len, unsigned char *buffer) {
+	SHA256_CTX c;
+	SHA256_Init(&c);
+	SHA256_Update(&c, src, src_len);
+	SHA256_Final(buffer, &c);
+	return 0;
+}
+
+void hash2hex(unsigned char hash[32], char hex[65]){
+	int hex_index = 0, i;
+	char temp[3] = {'\0'};
+
+	hex[0] = '\0';
+	for(i=0; i<32; i++){
+		sprintf(temp, "%02x", hash[i]);
+		strcat(hex, temp);
+	}
+}
+
+int judge(char *head, char *search){
+	int isCashable = 1 /* 結果を格納 */, shortl = strlen(search), longl = strlen(head), i, j;
+
+	for(i=0; i<=longl-shortl; i++){
+		for(j=0; j<shortl; j++){
+			if(head[j+i] != search[j]) break;
+			if(j == shortl-1){
+				isCashable = 0;
+				break;
+			}
+		}
+	}
+
+	return isCashable;
+}
+#endif
+
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -313,8 +381,9 @@ do_request(int cl, struct req * r)
 	char            buf[4096];
 
 #ifndef ORIGINAL
-	char cachepath[64] = "/usr/local/etc/", hashurl[33];
-	int isCachable = 1;
+	char cachepath[256] = "/usr/local/etc/ffproxy_cache/", hexurl[65], title[256];
+	unsigned char hashurl[32];
+	int isCachable, gottenTitle = 0;
 	FILE* fp;
 #endif
 
@@ -322,7 +391,17 @@ do_request(int cl, struct req * r)
 	ip = 0L;
 	s = 0;
 
-	// キャッシュ読み込み & return 0
+#ifndef ORIGINAL
+	compute_sha256(r->url, strlen(r->url), hashurl);
+	hash2hex(hashurl, hexurl);
+	strcat(cachepath, hexurl);
+	fp = fopen(cachepath, "rb");
+	if(fp){
+		while((len = fread(buf, 1, sizeof(buf), fp)) > 0) write(cl, buf, len);
+		fclose(fp);
+		return 0;
+	}
+#endif
 
 	if (config.use_ipv6 && (config.aux_proxy_ipv6 || *config.proxyhost == '\0')) {
 		struct addrinfo hints, *res, *res0;
@@ -582,24 +661,17 @@ do_request(int cl, struct req * r)
 		DEBUG(("do_request() => remote header ready: (%s)", buf));
 
 #ifndef ORIGINAL
+		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
+		// Header 解析
         isCachable = judge(buf, "private");
         isCachable = isCachable && judge(buf, "no-cache");
-        isCachable = isCachable && judge(buf,"no-store");
-        isCachable = isCachable && judge(buf,"must-revalidate");
-        isCachable = isCachable && judge(buf,"proxy-revalidate");
-
-		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
-		// スコープのあれで isCachable を移動しました。普通にこれに保存してください。 
+        isCachable = isCachable && judge(buf, "no-store");
+        isCachable = isCachable && judge(buf, "must-revalidate");
+        isCachable = isCachable && judge(buf, "proxy-revalidate");
 		
-		// ここにヘッダ解析お願いします
-		
-		if(isCachable){ // Header 保存 (確実に文字列、バイナリとして書き込んでもいい)
-			compute_sha256(r->url, strlen(r->url), hashurl);
-			hashurl[32] = '\0';
-			strcat(cachepath, /*hashurl*/"test");
-			
+		if(isCachable){ // Header 保存
 			if(fp = fopen(cachepath, "wb")){
-				fwrite(buf, 1, len, fp); // ヘッダを保存
+				fwrite(buf, 1, len, fp);
 				fclose(fp);
 			}
 		}
@@ -621,16 +693,8 @@ do_request(int cl, struct req * r)
 
 #ifndef ORIGINAL
 		FILE *fp;
-		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "a")){
-			// iconv_t icd;
-			// char p_dst[512];
-			// size_t n_src = strlen(title), n_dst = 512;
-			// icd = iconv_open("UTF-8", "EUC-JP");
-			// while(0 < n_src){
-			// 	iconv(icd, &title, &n_src, &p_dst, &n_dst);
-			// }
-			fprintf(fp, "%s,\n", r->url);
-			// iconv_close(icd);
+		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "ab")){
+			fprintf(fp, "%s,\n", r->url); // CONNECT でも URL だけは記録
 			fclose(fp);
 		}
 #endif
@@ -664,84 +728,28 @@ c_break:
 		(void) close(s);
 		return 0;
 	} else if (r->type != HEAD) {
-		char title[256];		// タイトルを格納する文字配列
-		int	 title_flag	 = 0; 	// タイトル未取得:0, 既取得:1
-		int	 title_index = 0;
-		int  tag_match	 = 0;
-		int	 new_i = 0;
-		
-		if(isCachable) fp = fopen(cachepath, "ab");
-		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-			// fprintf(stderr, "\n***** BODY No.%d *****\n%s\n", new_i++, buf); // ***** Response Body *****
 #ifndef ORIGINAL
-			if(fp) fwrite(buf, 1, len, fp); // ボディーを保存
-			
-			// <title> から </title> (大文字小文字区別なし) の範囲を取得
-			// タイトルが見つかっていれば以降の処理はスキップ
-    		if (title_flag == 0){
-				char* tag1 = "<title>";
-				char* tag2 = "<TITLE>";
-				int k, l;
-      			k = 0;
-      			while (k < len) {
-        			l = tag_match;
-        			if(tag_match != 7) {
-         				while (1) {
-            				if (*(buf + k) == *(tag1 + l) || *(buf + k) == *(tag2 + l)) {
-              					k++;
-              					l++;
-              					if (k == len || l == 7) {
-                					tag_match = l;
-                					break;
-              					}
-            				}
-            				else {
-              					tag_match = 0;
-              					k++;
-              					break;
-            				}
-          				}
-        			}
-        			else {
-          				while (k < len && *(buf + k) != '<') {
-            				title[title_index] = *(buf + k);
-            				title_index++;
-            				k++;
-          				}
-          				if (*(buf + k) == '<') {
-            				title_flag = 1;
-            				break;
-          				}
-          				else {
-            				title_flag = 0;
-            				k++;
-            				break;
-          				}
-        			}
-      			}
-    		}
-			title[title_index] = '\0';
+		if(isCachable) fp = fopen(cachepath, "ab");
+#endif
+		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
+#ifndef ORIGINAL
+			// fprintf(stderr, "\n***** BODY *****\n%s\n", buf); // ***** Response Body *****
+			if(!gottenTitle) gottenTitle = ExtractTitle(buf, len, title); // title を取得
+			if(fp) fwrite(buf, 1, len, fp); // Body を保存
 #endif
 			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
 				(void) close(s);
 				return -1;
 			}
 		}
+#ifndef ORIGINAL
 		if(fp) fclose(fp);
-		
+#endif
 		(void) close(s);
 #ifndef ORIGINAL
 		FILE *fp;
-		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "a")){
-			// iconv_t icd;
-			// char p_dst[512];
-			// size_t n_src = strlen(title), n_dst = 512;
-			// icd = iconv_open("UTF-8", "EUC-JP");
-    		// while(0 < n_src){
-			// 	iconv(icd, &title, &n_src, &p_dst, &n_dst);
-			// }
-			fprintf(fp, "%s, %s,\n", r->url, title);
-			// iconv_close(icd);
+		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "ab")){
+			fprintf(fp, "%s,\"%s\",\n", r->url, title); // URL とタイトルを記録
 			fclose(fp);
 		}
 #endif
@@ -749,25 +757,3 @@ c_break:
 	}
 	return 0;
 }
-
-#ifndef ORIGINAL
-int judge(char *head, char *search) {
-	int isCashable=1;//結果を格納
-	int shortl=strlen(search);
-	int longl=strlen(head);
-	int i,j;
-	for(i=0;i<=longl-shortl;i++){
-		for(j=0;j<shortl;j++){
-			if(head[j+i]!=search[j]){
-				break;
-			}
-			if(j==shortl){
-				isCashable=0;
-				break;
-			}
-		}
-	}
-	
-	return isCashable;
-}
-#endif

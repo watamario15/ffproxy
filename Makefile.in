@@ -31,7 +31,7 @@ CC=@CC@
 CFLAGS=@CFLAGS@ -DCFGFILE="\"${sysconfdir}/ffproxy.conf\"" \
 		-DDATADIR="\"$(pkgdatadir)\"" $(OPTIONS)
 LDFLAGS=@LDFLAGS@
-LIBS=@LIBS@ -lcrypto -lssl
+LIBS=@LIBS@ -lcrypto
 
 INSTALL=@INSTALL@
 INSTALL_PROGRAM=@INSTALL_PROGRAM@
