@@ -320,20 +320,46 @@ void hash2hex(unsigned char hash[32], char hex[65]){
 	}
 }
 
-int judge(char *head, char *search){
-	int isCashable = 1 /* 結果を格納 */, shortl = strlen(search), longl = strlen(head), i, j;
+// search は小文字で与えること。
+int judge(char *head, char search[]){
+	int shortl = strlen(search), longl = strlen(head), i, j;
 
 	for(i=0; i<=longl-shortl; i++){
+		if(head[i] == '\r' || head[i] == '\n') return 1;
 		for(j=0; j<shortl; j++){
-			if(head[j+i] != search[j]) break;
-			if(j == shortl-1){
-				isCashable = 0;
-				break;
-			}
+			if(head[j+i] == '\r' || head[j+i] == '\n') return 1;
+			if(isalpha(search[j])){
+                if(head[j+i] != search[j] && head[j+i] != search[j]-('a'-'A')) break;
+            }else{
+                if(head[j+i] != search[j]) break;
+            }
+			if(j == shortl-1) return 0;
 		}
 	}
 
-	return isCashable;
+	return 1;
+}
+
+// word は小文字で与えること。
+char *search(char str[], char word[]){
+    int wordl = strlen(word), strl = strlen(str), i=0, j;
+    while(1){
+        for(j=0; j<wordl; j++){
+            if(isalpha(word[j])){
+                if(str[j+i] != word[j] && str[j+i] != word[j]-('a'-'A')) break;
+            }else{
+                if(str[j+i] != word[j]) break;
+            }
+			if(j == wordl-1) return str+j+i+1;
+		}
+        i+=j;
+        while(str[i] != '\n'){
+            if(str[i] == '\0') return NULL;
+            i++;
+        }
+        i++;
+    }
+    return NULL;
 }
 #endif
 
@@ -381,9 +407,9 @@ do_request(int cl, struct req * r)
 	char            buf[4096];
 
 #ifndef ORIGINAL
-	char cachepath[256] = "/usr/local/etc/ffproxy_cache/", hexurl[65], title[256];
+	char cachepath[256] = "/usr/local/etc/ffproxy_cache/", hexurl[65], title[256], *buf_ptr;
 	unsigned char hashurl[32];
-	int isCachable, gottenTitle = 0;
+	int isCachable = 1, gottenTitle = 0;
 	FILE* fp;
 #endif
 
@@ -663,11 +689,11 @@ do_request(int cl, struct req * r)
 #ifndef ORIGINAL
 		// fprintf(stderr, "\n***** HEADER *****\n%s\n", buf); // Response Header
 		// Header 解析
-        isCachable = judge(buf, "private");
-        isCachable = isCachable && judge(buf, "no-cache");
-        isCachable = isCachable && judge(buf, "no-store");
-        isCachable = isCachable && judge(buf, "must-revalidate");
-        isCachable = isCachable && judge(buf, "proxy-revalidate");
+		if( (buf_ptr = search(buf, "pragma:")) ) isCachable = judge(buf_ptr, "no-cache");
+		if( (buf_ptr = search(buf, "cache-control:")) ){
+			isCachable = isCachable && judge(buf_ptr, "private") && judge(buf_ptr, "no-cache") &&
+            judge(buf_ptr, "no-store") && judge(buf_ptr, "must-revalidate") && judge(buf_ptr, "proxy-revalidate");
+    	}
 		
 		if(isCachable){ // Header 保存
 			if(fp = fopen(cachepath, "wb")){
