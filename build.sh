@@ -23,5 +23,5 @@ sudo sed -i -e "s/#bind_ipv4 yes/bind_ipv4 yes/" \
 -e "s%#db_files_path /usr/local/share/ffproxy%db_files_path /usr/local/share/ffproxy%" \
 -e "s/#use_keep_alive no/use_keep_alive no/" /usr/local/etc/ffproxy.conf
 
-sudo ffproxy -b -p 8080 &
 echo -e "\nffproxy started."
+sudo ffproxy -bp 8080
