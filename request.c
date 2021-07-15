@@ -18,6 +18,7 @@
  * this program; if not, write to the Free Software Foundation, Inc., 675
  * Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include "configure.h"
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -48,7 +49,6 @@
 
 #ifndef ORIGINAL
 #include <openssl/sha.h> // SHA Library
-#include <limits.h>
 #endif
 
 static int      read_header(int, struct req *);
@@ -259,8 +259,49 @@ getline_int(int s, char buf[], int len)
 }
 
 #ifndef ORIGINAL
-// <title> から </title> (大文字小文字区別なし) の範囲を取得。既にタイトルが見つかっていれば以降の処理はスキップ
-int ExtractTitle(char body[], int len, char title[]) {
+int compute_sha256(unsigned char *src, unsigned int src_len, unsigned char *buffer){
+	SHA256_CTX c;
+	SHA256_Init(&c);
+	SHA256_Update(&c, src, src_len);
+	SHA256_Final(buffer, &c);
+	return 0;
+}
+
+void hash2hex(unsigned char hash[32], char hex[65]){
+	int hex_index = 0, i;
+	char temp[3] = {'\0'};
+
+	hex[0] = '\0';
+	for(i=0; i<32; i++){
+		sprintf(temp, "%02x", hash[i]);
+		strcat(hex, temp);
+	}
+}
+
+void ExtractHomedir(char dest[PATH_MAX]){
+	int i;
+	char *temp = getenv("HOME");
+	if(!temp){
+		dest[0] = '\0';
+		return;
+	}
+
+	for(i=0; i<strlen(temp); i++){
+		if(i>=PATH_MAX){
+			dest[0] = '\0';
+			break;
+		}
+		if(temp[i] != ':') dest[i] = temp[i];
+		else{
+			if(dest[i-1] == '/') dest[i-1] = '\0';
+			else dest[i] = '\0';
+			break;
+		}
+	}
+}
+
+// <title> から </title> (大文字小文字区別なし)の範囲を取得
+static int ExtractTitle(char body[], int len, char title[]) {
 	int title_flag = 0 /* タイトル未取得:0, 既取得:1 */, title_index = 0, tag_match = 0, k = 0, l;
 	char *tag1 = "<title>", *tag2 = "<TITLE>";
 	
@@ -302,27 +343,8 @@ int ExtractTitle(char body[], int len, char title[]) {
 	return title_flag;
 }
 
-int compute_sha256(unsigned char *src, unsigned int src_len, unsigned char *buffer) {
-	SHA256_CTX c;
-	SHA256_Init(&c);
-	SHA256_Update(&c, src, src_len);
-	SHA256_Final(buffer, &c);
-	return 0;
-}
-
-void hash2hex(unsigned char hash[32], char hex[65]){
-	int hex_index = 0, i;
-	char temp[3] = {'\0'};
-
-	hex[0] = '\0';
-	for(i=0; i<32; i++){
-		sprintf(temp, "%02x", hash[i]);
-		strcat(hex, temp);
-	}
-}
-
 // search は小文字で与えること。
-int judge(char *head, char search[]){
+static int judge(char *head, char search[]){
 	int shortl = strlen(search), longl = strlen(head), i, j;
 
 	for(i=0; i<=longl-shortl; i++){
@@ -342,8 +364,9 @@ int judge(char *head, char search[]){
 }
 
 // word は小文字で与えること。
-char *search(char str[], char word[]){
+static char *search(char str[], char word[]){
     int wordl = strlen(word), strl = strlen(str), i=0, j;
+
     while(1){
         for(j=0; j<wordl; j++){
             if(isalpha(word[j])){
@@ -360,6 +383,7 @@ char *search(char str[], char word[]){
         }
         i++;
     }
+	
     return NULL;
 }
 #endif
@@ -408,24 +432,19 @@ do_request(int cl, struct req * r)
 	char            buf[4096];
 
 #ifndef ORIGINAL
-	char histpath[PATH_MAX], cachepath[PATH_MAX], hexurl[65], title[256], *buf_ptr = getenv("HOME");
+	char histpath[PATH_MAX], cachepath[PATH_MAX], hexurl[65], title[256], *buf_ptr;
 	unsigned char hashurl[32];
 	int isCachable = 1, gottenTitle = 0;
 	FILE* fp;
 
-	if(buf_ptr){
-		strcpy(cachepath, buf_ptr);
-		strcpy(histpath, buf_ptr);
-		if(buf_ptr[strlen(buf_ptr)-1] == '/'){
-			strcat(cachepath, "ffproxy/Cache/");
-			strcat(histpath, "ffproxy/history.csv");
-		}else{
-			strcat(cachepath, "/ffproxy/Cache/");
-			strcat(histpath, "/ffproxy/history.csv");
-		}
+	ExtractHomedir(cachepath);
+	if(cachepath[0] && PATH_MAX-strlen(cachepath) >= sizeof("/ffproxy/history.csv")+64){
+		strcpy(histpath, cachepath);
+		strcat(cachepath, "/ffproxy/Cache/");
+		strcat(histpath, "/ffproxy/history.csv");
 	}else{
-		strcpy(cachepath, "/usr/local/etc/ffproxy_cache/");
-		strcpy(histpath, "/usr/local/etc/history.csv");
+		strcpy(cachepath, "/usr/local/etc/ffproxy/Cache/");
+		strcpy(histpath, "/usr/local/etc/ffproxy/history.csv");
 	}
 #endif
 

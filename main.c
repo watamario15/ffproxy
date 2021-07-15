@@ -45,6 +45,7 @@
 #include "signals.h"
 
 #ifndef ORIGINAL
+#include "request.h"
 #include <dirent.h>
 #endif
 
@@ -89,12 +90,9 @@ main(int argc, char *argv[])
 	int             c, nowarn;
 	char		*prgname;
 #ifndef ORIGINAL
-	char savepath[PATH_MAX], *tempptr = getenv("HOME");
-	if(tempptr){
-		strcpy(savepath, tempptr);
-		if(tempptr[strlen(tempptr)-1] == '/') strcat(savepath, "ffproxy");
-		else strcat(savepath, "/ffproxy");
-	}
+	char savepath[PATH_MAX];
+	ExtractHomedir(savepath);
+	if(savepath[0] && PATH_MAX-strlen(savepath) >= sizeof("/ffproxy/history.csv")+64) strcat(savepath, "/ffproxy");
 	else strcpy(savepath, "/usr/local/etc/ffproxy");
 #endif
 
