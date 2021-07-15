@@ -88,6 +88,15 @@ main(int argc, char *argv[])
 {
 	int             c, nowarn;
 	char		*prgname;
+#ifndef ORIGINAL
+	char savepath[PATH_MAX], *tempptr = getenv("HOME");
+	if(tempptr){
+		strcpy(savepath, tempptr);
+		if(tempptr[strlen(tempptr)-1] == '/') strcat(savepath, "ffproxy");
+		else strcat(savepath, "/ffproxy");
+	}
+	else strcpy(savepath, "/usr/local/etc/ffproxy");
+#endif
 
 	prgname = argv[0];
 	nowarn = 0;
@@ -140,17 +149,17 @@ main(int argc, char *argv[])
 			{
 				DIR *dir;
 				struct dirent *ds;
-				char fname[256];
+				char fname[PATH_MAX];
+				snprintf(fname, PATH_MAX, "%s/%s", savepath, "Cache");
 				
-				if( !(dir=opendir("/usr/local/etc/ffproxy_cache")) ) break;
+				if( !(dir=opendir(savepath)) ) break;
 				for(ds=readdir(dir); ds; ds=readdir(dir)){
 					if(ds->d_type != DT_REG) continue;
-					sprintf(fname, "/usr/local/etc/ffproxy_cache/%s", ds->d_name);
+					snprintf(fname, PATH_MAX, "%s/Cache/%s", savepath, ds->d_name);
 					remove(fname);
 				}
 			}
-			break;
-			
+			break;	
 #endif
 		case 'd':
 			config.daemon = 1;
@@ -305,7 +314,9 @@ main(int argc, char *argv[])
 
 	init_sighandlers();
 #ifndef ORIGINAL
-	mkdir("/usr/local/etc/ffproxy_cache", 493);
+	mkdir(savepath, 493);
+	strcat(savepath, "/Cache");
+	mkdir(savepath, 493);
 #endif
 	open_socket();
 
@@ -319,11 +330,12 @@ usage(void)
 	(void) fprintf(stderr, "ffproxy %s -- (c) 2002-2005 Niklas Olmes <niklas@noxa.de>\n", version);
 	(void) fprintf(stderr, "   GNU GPL.  Website: http://faith.eu.org/programs.html\n");
 	(void) fprintf(stderr,
-		       "usage: ffproxy [-vhds4bB] [-c host|ip] [-C host|ip] [-p port]\n"
+		       "usage: ffproxy [-vhds4bBR] [-c host|ip] [-C host|ip] [-p port]\n"
                        "       [-x host|ip -X port] [-l max] [-u uid|usr -g gid|grp] [-r dir]\n"
                        "       [-D dir] [-f file] [-a host|ip] [-A port]\n"
 		       " -v  print version number       -h  usage (this screen)\n"
 		       " -d  become daemon              -s  silent.  don't log to syslog.\n"
+			   " -R  clear all cache files first\n"
 		       " -4  use IPv4 only.  don't try contacting via IPv6.\n"
 		       " -b  do *not* bind to IPv4\n"
 		       " -B  do *not* bind to IPv6\n"

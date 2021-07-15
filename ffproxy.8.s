@@ -20,7 +20,7 @@
 .Op Fl a Ar ip|hostname
 .Op Fl A Ar port
 .Op Fl f Ar configfile
-.Op Fl ds4bBhv 
+.Op Fl ds4bBhvR
 .Sh DESCRIPTION
 .Nm ffproxy
 is a filtering HTTP/HTTPS proxy server.  It is able to filter

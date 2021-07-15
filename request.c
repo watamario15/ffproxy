@@ -48,6 +48,7 @@
 
 #ifndef ORIGINAL
 #include <openssl/sha.h> // SHA Library
+#include <limits.h>
 #endif
 
 static int      read_header(int, struct req *);
@@ -407,10 +408,25 @@ do_request(int cl, struct req * r)
 	char            buf[4096];
 
 #ifndef ORIGINAL
-	char cachepath[256] = "/usr/local/etc/ffproxy_cache/", hexurl[65], title[256], *buf_ptr;
+	char histpath[PATH_MAX], cachepath[PATH_MAX], hexurl[65], title[256], *buf_ptr = getenv("HOME");
 	unsigned char hashurl[32];
 	int isCachable = 1, gottenTitle = 0;
 	FILE* fp;
+
+	if(buf_ptr){
+		strcpy(cachepath, buf_ptr);
+		strcpy(histpath, buf_ptr);
+		if(buf_ptr[strlen(buf_ptr)-1] == '/'){
+			strcat(cachepath, "ffproxy/Cache/");
+			strcat(histpath, "ffproxy/history.csv");
+		}else{
+			strcat(cachepath, "/ffproxy/Cache/");
+			strcat(histpath, "/ffproxy/history.csv");
+		}
+	}else{
+		strcpy(cachepath, "/usr/local/etc/ffproxy_cache/");
+		strcpy(histpath, "/usr/local/etc/history.csv");
+	}
 #endif
 
 	len = 0;
@@ -719,7 +735,7 @@ do_request(int cl, struct req * r)
 
 #ifndef ORIGINAL
 		FILE *fp;
-		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "ab")){
+		if (fp=fopen(histpath, "ab")){
 			fprintf(fp, "%s,\n", r->url); // CONNECT でも URL だけは記録
 			fclose(fp);
 		}
@@ -774,7 +790,7 @@ c_break:
 		(void) close(s);
 #ifndef ORIGINAL
 		FILE *fp;
-		if (fp=fopen("/usr/local/etc/ffproxy_history.csv", "ab")){
+		if (fp=fopen(histpath, "ab")){
 			fprintf(fp, "%s,\"%s\",\n", r->url, title); // URL とタイトルを記録
 			fclose(fp);
 		}

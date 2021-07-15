@@ -25,3 +25,10 @@ cd 5_PBL-A
 ```
 
 After the first build, you can speed up the build process by simply running `./build.sh` with no options. This excludes the execution of `./configure`.
+
+Added Features
+===========
+
+- Caching support
+  - You can clear all cache files by specifying the `-R` option.
+- Browse history
