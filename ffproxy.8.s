@@ -109,6 +109,8 @@ Don't bind to IPv6.
 Show usage information.
 .It Fl v
 Display version number.
+.It Fl R
+Clear all cache files first.
 .El
 .Sh THE DB/ DIRECTORY
 The db/ directory contains files that control the behaviour
