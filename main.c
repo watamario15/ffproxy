@@ -150,7 +150,7 @@ main(int argc, char *argv[])
 				char fname[PATH_MAX];
 				snprintf(fname, PATH_MAX, "%s/%s", savepath, "Cache");
 				
-				if( !(dir=opendir(savepath)) ) break;
+				if( !(dir=opendir(fname)) ) break;
 				for(ds=readdir(dir); ds; ds=readdir(dir)){
 					if(ds->d_type != DT_REG) continue;
 					snprintf(fname, PATH_MAX, "%s/Cache/%s", savepath, ds->d_name);
