@@ -758,7 +758,7 @@ do_request(int cl, struct req * r)
 		time_t timer = time(NULL);
 		struct tm *local = localtime(&timer);
 		if (fp=fopen(histpath, "ab")){
-			fprintf(fp, "%d/%d/%d %d:%d, %s,\n", local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, r->url); // CONNECT でも URL だけは記録
+			fprintf(fp, "%d/%d/%d %d:%d,%s,\n", local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, r->url); // CONNECT でも URL だけは記録
 			fclose(fp);
 		}
 #endif
@@ -815,7 +815,7 @@ c_break:
 		time_t timer = time(NULL);
 		struct tm *local = localtime(&timer);
 		if (fp=fopen(histpath, "ab")){
-			fprintf(fp, "%d/%d/%d %d:%d, %s, \"%s\",\n", local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, r->url, title);
+			fprintf(fp, "%d/%d/%d %d:%d,%s,\"%s\",\n", local->tm_year + 1900, local->tm_mon + 1, local->tm_mday, local->tm_hour, local->tm_min, r->url, title);
 			fclose(fp);
 		}
 #endif
