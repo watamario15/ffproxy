@@ -156,6 +156,7 @@ main(int argc, char *argv[])
 					snprintf(fname, PATH_MAX, "%s/Cache/%s", savepath, ds->d_name);
 					remove(fname);
 				}
+				closedir(dir);
 			}
 			break;	
 #endif
