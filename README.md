@@ -1,8 +1,4 @@
 # The ffproxy improving project in the PBL-A course, 2021
-[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/watamario15/5_PBL-A)
-
-Description
-===========
 
 ffproxy is a filtering HTTP/HTTPS proxy server. It is able to filter by host,
 URL, and header.  Custom header entries can be filtered and added.
@@ -28,6 +24,8 @@ After the first build, you can speed up the build process by simply running `./b
 
 Added Features
 ===========
+
+Developed by [masa0120](https://github.com/masa0120), [Ryu-Okamoto](https://github.com/Ryu-Okamoto), [stakaichi11](https://github.com/stakaichi11), [Tattaratan](https://github.com/Tattaratan), [watamario15](https://github.com/watamario15), and [yoshizaki3070](https://github.com/yoshizaki3070):
 
 - Caching support
   - You can clear all cache files by specifying the `-R` option.
