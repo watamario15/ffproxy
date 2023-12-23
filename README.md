@@ -14,9 +14,9 @@ Build & Run
 ===========
 
 ```sh
-# cd /where/you/want/to/put/everything/in
-git clone https://github.com/watamario15/5_PBL-A.git
-cd 5_PBL-A
+# cd /where/you/want/to/put/everything/in/
+git clone https://github.com/watamario15/ffproxy.git
+cd ffproxy
 ./build.sh first
 ```
 
